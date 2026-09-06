@@ -1,12 +1,12 @@
 #include "Objeto2D.hpp"
 #include "Transformacoes.hpp"
 
-Objeto2D::Objeto2D() : nome("Objeto"), matrizAcumulada(1.0f) {}
+Objeto2D::Objeto2D() : nome("Objeto"), matrizAcumulada(1.0f), matrizOrdemInversa(1.0f) {}
 
-Objeto2D::Objeto2D(const std::string& nome) : nome(nome), matrizAcumulada(1.0f) {}
+Objeto2D::Objeto2D(const std::string& nome) : nome(nome), matrizAcumulada(1.0f), matrizOrdemInversa(1.0f) {}
 
 Objeto2D::Objeto2D(const ObjetoBase& base)
-    : nome(base.nome), matrizAcumulada(1.0f) {
+    : nome(base.nome), matrizAcumulada(1.0f), matrizOrdemInversa(1.0f) {
     poligonos.reserve(base.poligonos.size());
     for (const auto& p : base.poligonos) {
         poligonos.emplace_back(p);
@@ -19,10 +19,12 @@ void Objeto2D::adicionarPoligono(const Poligono& poligono) {
 
 void Objeto2D::comporTransformacao(const glm::mat3& novaTransformacao) {
     matrizAcumulada = novaTransformacao * matrizAcumulada;
+    matrizOrdemInversa = matrizOrdemInversa * novaTransformacao;
 }
 
 void Objeto2D::resetar() {
     matrizAcumulada = glm::mat3(1.0f);
+    matrizOrdemInversa = glm::mat3(1.0f);
 }
 
 glm::vec2 Objeto2D::calcularCentroOriginal() const {
@@ -38,10 +40,11 @@ glm::vec2 Objeto2D::calcularCentroOriginal() const {
     return soma / static_cast<float>(totalVertices);
 }
 
-glm::vec2 Objeto2D::calcularCentroAtual() const {
+glm::vec2 Objeto2D::calcularCentroAtual(bool ordemInversa) const {
     glm::vec2 centroOrig = calcularCentroOriginal();
     glm::vec3 pHomogeneo(centroOrig.x, centroOrig.y, 1.0f);
-    glm::vec3 pTransformado = matrizAcumulada * pHomogeneo;
+    const glm::mat3& M = ordemInversa ? matrizOrdemInversa : matrizAcumulada;
+    glm::vec3 pTransformado = M * pHomogeneo;
     return glm::vec2(pTransformado.x, pTransformado.y);
 }
 

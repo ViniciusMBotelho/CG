@@ -16,7 +16,8 @@ class Objeto2D {
 private:
     std::string nome;
     std::vector<Poligono> poligonos; // Vértices originais imutáveis no mundo
-    glm::mat3 matrizAcumulada;        // Matriz M acumulada das transformações
+    glm::mat3 matrizAcumulada;        // Matriz M padrão: Nova * M (ordem cronológica correta)
+    glm::mat3 matrizOrdemInversa;     // Matriz com ordem contrária: M * Nova (para demonstrar não-comutatividade)
 
 public:
     Objeto2D();
@@ -33,11 +34,14 @@ public:
     const glm::mat3& getMatrizAcumulada() const { return matrizAcumulada; }
     void setMatrizAcumulada(const glm::mat3& M) { matrizAcumulada = M; }
 
+    const glm::mat3& getMatrizOrdemInversa() const { return matrizOrdemInversa; }
+    void setMatrizOrdemInversa(const glm::mat3& M) { matrizOrdemInversa = M; }
+
     void comporTransformacao(const glm::mat3& novaTransformacao);
     void resetar();
 
     glm::vec2 calcularCentroOriginal() const;
-    glm::vec2 calcularCentroAtual() const;
+    glm::vec2 calcularCentroAtual(bool ordemInversa = false) const;
 
     // Métodos diretos de transformação exigidos no edital
     void transladar(float dx, float dy);

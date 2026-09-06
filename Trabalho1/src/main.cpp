@@ -11,6 +11,7 @@ static Cena cena;
 static Viewport viewport;
 static int larguraJanela = 1000;
 static int alturaJanela = 700;
+static bool modoDemonstracaoOrdem = false;
 
 void desenharTexto(float x, float y, const std::string& texto, void* fonte = GLUT_BITMAP_HELVETICA_12) {
     glRasterPos2f(x, y);
@@ -100,14 +101,21 @@ void desenharEixosCartesianos(const Viewport& vp, float passo = 25.0f) {
     }
 }
 
-void desenharObjeto(const Objeto2D& obj, const Viewport& vp) {
-    const glm::mat3& M = obj.getMatrizAcumulada();
+void desenharObjeto(const Objeto2D& obj, const Viewport& vp, bool aramado = false, bool ordemInversa = false) {
+    const glm::mat3& M = ordemInversa ? obj.getMatrizOrdemInversa() : obj.getMatrizAcumulada();
 
     for (const auto& poly : obj.getPoligonos()) {
         const glm::vec3& cor = poly.getCor();
-        glColor3f(cor.r, cor.g, cor.b);
 
-        glBegin(GL_POLYGON);
+        if (aramado) {
+            glColor3f(cor.r * 0.8f, cor.g * 0.8f, cor.b * 0.8f);
+            glLineWidth(1.5f);
+            glBegin(GL_LINE_LOOP);
+        } else {
+            glColor3f(cor.r, cor.g, cor.b);
+            glBegin(GL_POLYGON);
+        }
+
         for (const auto& v : poly.getVertices()) {
             glm::vec3 pHomogeneo(v.posicao.x, v.posicao.y, 1.0f);
             glm::vec3 pMundoTransf = M * pHomogeneo;
@@ -116,16 +124,18 @@ void desenharObjeto(const Objeto2D& obj, const Viewport& vp) {
         }
         glEnd();
 
-        glColor3f(cor.r * 0.35f, cor.g * 0.35f, cor.b * 0.35f);
-        glLineWidth(1.0f);
-        glBegin(GL_LINE_LOOP);
-        for (const auto& v : poly.getVertices()) {
-            glm::vec3 pHomogeneo(v.posicao.x, v.posicao.y, 1.0f);
-            glm::vec3 pMundoTransf = M * pHomogeneo;
-            glm::vec2 pVp = vp.mundoParaViewport(glm::vec2(pMundoTransf.x, pMundoTransf.y));
-            glVertex2f(pVp.x, pVp.y);
+        if (!aramado) {
+            glColor3f(cor.r * 0.35f, cor.g * 0.35f, cor.b * 0.35f);
+            glLineWidth(1.0f);
+            glBegin(GL_LINE_LOOP);
+            for (const auto& v : poly.getVertices()) {
+                glm::vec3 pHomogeneo(v.posicao.x, v.posicao.y, 1.0f);
+                glm::vec3 pMundoTransf = M * pHomogeneo;
+                glm::vec2 pVp = vp.mundoParaViewport(glm::vec2(pMundoTransf.x, pMundoTransf.y));
+                glVertex2f(pVp.x, pVp.y);
+            }
+            glEnd();
         }
-        glEnd();
     }
 }
 
@@ -134,25 +144,48 @@ void callbackDisplay() {
 
     const RegiaoViewport& regiao = viewport.getRegiao();
 
-    desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.02f, 0.02f, 0.04f), true);
-    desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.4f, 0.6f, 0.8f), false);
+    if (modoDemonstracaoOrdem) {
+        desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.05f, 0.01f, 0.02f), true);
+        desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.95f, 0.35f, 0.35f), false);
 
-    glColor3f(0.8f, 0.8f, 0.9f);
-    desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "ETAPA 3: TRANSFORMACOES GEOMETRICAS 2D (MATRIZES 3x3)", GLUT_BITMAP_HELVETICA_12);
+        glColor3f(1.0f, 0.4f, 0.4f);
+        desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "ORDEM CONTRARIA (M * Nova) - [Pressione 'D' para voltar ao Normal]", GLUT_BITMAP_HELVETICA_12);
 
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(static_cast<GLint>(regiao.xMin),
-              static_cast<GLint>(alturaJanela - regiao.yMax),
-              static_cast<GLsizei>(regiao.getLargura()),
-              static_cast<GLsizei>(regiao.getAltura()));
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(static_cast<GLint>(regiao.xMin),
+                  static_cast<GLint>(alturaJanela - regiao.yMax),
+                  static_cast<GLsizei>(regiao.getLargura()),
+                  static_cast<GLsizei>(regiao.getAltura()));
 
-    desenharEixosCartesianos(viewport, 25.0f);
+        desenharEixosCartesianos(viewport, 25.0f);
 
-    for (const auto& obj : cena.getObjetos()) {
-        desenharObjeto(obj, viewport);
+        for (const auto& obj : cena.getObjetos()) {
+            desenharObjeto(obj, viewport, true, false);
+            desenharObjeto(obj, viewport, false, true);
+        }
+
+        glDisable(GL_SCISSOR_TEST);
+    } else {
+        desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.02f, 0.02f, 0.04f), true);
+        desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.4f, 0.6f, 0.8f), false);
+
+        glColor3f(0.8f, 0.8f, 0.9f);
+        desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "VIEWPORT GRAFICA [NORMAL: Nova * M] - (Pressione 'D' para ver Ordem Contraria)", GLUT_BITMAP_HELVETICA_12);
+
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(static_cast<GLint>(regiao.xMin),
+                  static_cast<GLint>(alturaJanela - regiao.yMax),
+                  static_cast<GLsizei>(regiao.getLargura()),
+                  static_cast<GLsizei>(regiao.getAltura()));
+
+        desenharEixosCartesianos(viewport, 25.0f);
+
+        for (const auto& obj : cena.getObjetos()) {
+            desenharObjeto(obj, viewport, false, false);
+        }
+
+        glDisable(GL_SCISSOR_TEST);
     }
-
-    glDisable(GL_SCISSOR_TEST);
 
     glutSwapBuffers();
 }
@@ -223,11 +256,15 @@ void callbackKeyboard(unsigned char key, int x, int y) {
         case 'y': case 'Y':
             if (obj) { obj->espelharY(); }
             break;
+        case 'd': case 'D':
+            modoDemonstracaoOrdem = !modoDemonstracaoOrdem;
+            std::cout << ">> Modo Demonstracao da Ordem: " << (modoDemonstracaoOrdem ? "ATIVADO" : "DESATIVADO") << "\n";
+            break;
         case '0':
             if (obj) { obj->resetar(); }
             break;
         case 27: case 'q': case 'Q':
-            std::cout << "\nEncerrando visualizacao da Etapa 3.\n";
+            std::cout << "\nEncerrando visualizacao.\n";
             exit(0);
     }
     glutPostRedisplay();
@@ -253,7 +290,7 @@ int main(int argc, char** argv) {
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(larguraJanela, alturaJanela);
     glutInitWindowPosition(100, 100);
-    glutCreateWindow("TP1 - Etapa 3: Transformacoes Geometricas 2D");
+    glutCreateWindow("TP1 - Etapa 4: Nao-Comutatividade das Transformacoes");
 
     glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
 
@@ -267,7 +304,7 @@ int main(int argc, char** argv) {
     glutSpecialFunc(callbackSpecial);
 
     std::cout << "==========================================================\n";
-    std::cout << "  ETAPA 3: TRANSFORMACOES GEOMETRICAS 2D (HOMOGENEAS 3x3) \n";
+    std::cout << "  ETAPA 4: NAO-COMUTATIVIDADE DAS TRANSFORMACOES (TECLA D)\n";
     std::cout << "==========================================================\n";
 
     glutMainLoop();

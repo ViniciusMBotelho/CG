@@ -10,7 +10,7 @@ Este documento serve como roteiro de implementação e guia de estudo para a apr
 - [x] **Etapa 1:** Estrutura OO & Modelo da Cena
 - [x] **Etapa 2:** Mapeamento Mundo $\to$ Viewport (Inversão do Eixo Y)
 - [x] **Etapa 3:** Transformações Geométricas 2D (Matrizes Homogêneas 3×3)
-- [ ] **Etapa 4:** Demonstração da Não-Comutatividade ($T \cdot S \neq S \cdot T$)
+- [x] **Etapa 4:** Demonstração da Não-Comutatividade ($T \cdot S \neq S \cdot T$)
 - [ ] **Etapa 5:** Interatividade, Painel Lateral, Documentação & Entrega
 
 ---
@@ -78,15 +78,14 @@ Este documento serve como roteiro de implementação e guia de estudo para a apr
 **Objetivo de Aprendizagem:** Demonstrar geometricamente e algebricamente que o produto de transformações lineares e afins não é comutativo.
 
 ### Checklist de Atividades:
-- [ ] Criar modo especial de exibição dividida (duas viewports simultâneas independentes).
-- [ ] Lado Esquerdo: aplicar Escala seguida de Translação ($M = T \cdot S$).
-- [ ] Lado Direito: aplicar Translação seguida de Escala ($M = S \cdot T$).
-- [ ] Desenhar o objeto original em aramado (*wireframe*) para referência visual da origem.
-- [ ] Adicionar legendas explicativas superiores e eixos cartesianos locais.
+- [x] Rastrear paralelamente no `Objeto2D` duas matrizes acumuladas: ordem correta ($M_{\text{nova}} \cdot M$) e ordem contrária ($M \cdot M_{\text{nova}}$).
+- [x] Tecla `D` alterna em tempo real a cena completa entre o modo Normal e o modo Ordem Contrária.
+- [x] No modo Ordem Contrária, renderizar o resultado preenchido com fundo avermelhado de alerta e o contorno da ordem normal em aramado para contraste direto.
+- [x] Permitir que qualquer transformação interativa aplicada pelo usuário exponha comportamentos distorcidos/bizarros no modo contrário.
 
 ### 💡 O que responder na Arguição (30 segundos):
-> **Pergunta provável:** *"Por que $T \cdot S$ resulta em uma posição diferente de $S \cdot T$?"*  
-> **Resposta:** *"A multiplicação matricial não é comutativa. Em $T \cdot S$, o objeto é escalado na origem e depois deslocado exatamente pelo vetor de translação $(\Delta x, \Delta y)$. Em $S \cdot T$, o objeto é transladado primeiro e, quando a escala é aplicada a seguir, ela multiplica inclusive as coordenadas de translação $(s_x \cdot \Delta x, s_y \cdot \Delta y)$, afastando ou aproximando o objeto da origem."*
+> **Pergunta provável:** *"Por que a ordem das transformações gera resultados tão diferentes na cena?"*  
+> **Resposta:** *"A multiplicação matricial é não-comutativa ($A \cdot B \neq B \cdot A$). Na ordem padrão ($M_{\text{nova}} \cdot M$), a nova transformação atua sobre o estado já acumulado do objeto (ex: rotacionar em torno do seu centro atual). Na ordem contrária ($M \cdot M_{\text{nova}}$), a nova transformação é pré-multiplicada na base antes das translações anteriores, fazendo com que rotações e escalas afetem os vetores de deslocamento já realizados, gerando órbitas imensas e distorções espaciais bizarras."*
 
 ---
 
