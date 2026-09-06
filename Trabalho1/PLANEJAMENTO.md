@@ -7,7 +7,8 @@ Este documento serve como roteiro de implementação e guia de estudo para a apr
 ## 📊 Status Geral do Projeto
 
 - [x] **Etapa 1:** Estrutura OO & Modelo da Cena
-- [ ] **Etapa 2:** Mapeamento Mundo $\to$ Viewport (Inversão do Eixo Y)
+- [x] **Etapa 1:** Estrutura OO & Modelo da Cena
+- [x] **Etapa 2:** Mapeamento Mundo $\to$ Viewport (Inversão do Eixo Y)
 - [ ] **Etapa 3:** Transformações Geométricas 2D (Matrizes Homogêneas 3×3)
 - [ ] **Etapa 4:** Demonstração da Não-Comutatividade ($T \cdot S \neq S \cdot T$)
 - [ ] **Etapa 5:** Interatividade, Painel Lateral, Documentação & Entrega
@@ -34,14 +35,14 @@ Este documento serve como roteiro de implementação e guia de estudo para a apr
 **Objetivo de Aprendizagem:** Compreender o pipeline de visualização 2D e implementar a conversão matemática explícita de coordenadas reais (mundo) para coordenadas de pixel da janela sem recorrer a funções automáticas proibidas do OpenGL (`glViewport`, `gluOrtho2D` no desenho das formas).
 
 ### Checklist de Atividades:
-- [ ] Criar estruturas auxiliares `JanelaMundo` ($x_{\min}, x_{\max}, y_{\min}, y_{\max}$) e `RegiaoViewport` ($x_{\min}, x_{\max}, y_{\min}, y_{\max}$ na tela).
-- [ ] Criar classe `Viewport` com os métodos de conversão explícita:
+- [x] Criar estruturas auxiliares `JanelaMundo` ($x_{\min}, x_{\max}, y_{\min}, y_{\max}$) e `RegiaoViewport` ($x_{\min}, x_{\max}, y_{\min}, y_{\max}$ na tela).
+- [x] Criar classe `Viewport` com os métodos de conversão explícita:
   - `mundoParaViewport(glm::vec2)`: aplicando escala e inversão do eixo $Y$.
   - `viewportParaMundo(glm::vec2)`: conversão inversa para futuros cliques de mouse.
-- [ ] Configurar a janela básica com GLUT (`glutInit`, `glutCreateWindow`, callbacks `display` e `reshape`).
-- [ ] Desenhar a delimitação visual da viewport gráfica na tela (`GL_LINE_LOOP`).
-- [ ] Desenhar os eixos cartesianos com setas, graduações (*ticks*) e valores numéricos no mundo.
-- [ ] Renderizar os objetos estáticos da cena dentro da viewport.
+- [x] Configurar a janela básica com GLUT (`glutInit`, `glutCreateWindow`, callbacks `display` e `reshape`).
+- [x] Desenhar a delimitação visual da viewport gráfica na tela (`GL_LINE_LOOP`).
+- [x] Desenhar os eixos cartesianos com setas, graduações (*ticks*) e valores numéricos no mundo.
+- [x] Renderizar os objetos estáticos da cena dentro da viewport.
 
 ### 💡 O que responder na Arguição (30 segundos):
 > **Pergunta provável:** *"Por que é necessário inverter o eixo Y e qual é a fórmula de mapeamento?"*  
