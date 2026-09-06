@@ -1,4 +1,5 @@
 #include "Objeto2D.hpp"
+#include "Transformacoes.hpp"
 
 Objeto2D::Objeto2D() : nome("Objeto"), matrizAcumulada(1.0f) {}
 
@@ -52,4 +53,44 @@ ObjetoBase Objeto2D::toObjetoBase() const {
         base.poligonos.push_back(p.toPoligonoBase());
     }
     return base;
+}
+
+void Objeto2D::transladar(float dx, float dy) {
+    glm::mat3 T = Transformacoes::translacao(dx, dy);
+    comporTransformacao(T);
+}
+
+void Objeto2D::rotacionarCentro(float anguloRadianos) {
+    glm::vec2 centro = calcularCentroAtual();
+    glm::mat3 R = Transformacoes::rotacaoPonto(anguloRadianos, centro);
+    comporTransformacao(R);
+}
+
+void Objeto2D::rotacionarOrigem(float anguloRadianos) {
+    glm::mat3 R = Transformacoes::rotacao(anguloRadianos);
+    comporTransformacao(R);
+}
+
+void Objeto2D::escalar(float sx, float sy) {
+    glm::mat3 S = Transformacoes::escala(sx, sy);
+    comporTransformacao(S);
+}
+
+void Objeto2D::escalarCentro(float sx, float sy) {
+    glm::vec2 centro = calcularCentroAtual();
+    glm::mat3 S = Transformacoes::escalaPonto(sx, sy, centro);
+    comporTransformacao(S);
+}
+
+void Objeto2D::cisalhar(float hx, float hy) {
+    if (hx != 0.0f) comporTransformacao(Transformacoes::cisalhamentoX(hx));
+    if (hy != 0.0f) comporTransformacao(Transformacoes::cisalhamentoY(hy));
+}
+
+void Objeto2D::espelharX() {
+    comporTransformacao(Transformacoes::reflexaoX());
+}
+
+void Objeto2D::espelharY() {
+    comporTransformacao(Transformacoes::reflexaoY());
 }

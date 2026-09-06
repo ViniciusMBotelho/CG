@@ -9,7 +9,7 @@ Este documento serve como roteiro de implementação e guia de estudo para a apr
 - [x] **Etapa 1:** Estrutura OO & Modelo da Cena
 - [x] **Etapa 1:** Estrutura OO & Modelo da Cena
 - [x] **Etapa 2:** Mapeamento Mundo $\to$ Viewport (Inversão do Eixo Y)
-- [ ] **Etapa 3:** Transformações Geométricas 2D (Matrizes Homogêneas 3×3)
+- [x] **Etapa 3:** Transformações Geométricas 2D (Matrizes Homogêneas 3×3)
 - [ ] **Etapa 4:** Demonstração da Não-Comutatividade ($T \cdot S \neq S \cdot T$)
 - [ ] **Etapa 5:** Interatividade, Painel Lateral, Documentação & Entrega
 
