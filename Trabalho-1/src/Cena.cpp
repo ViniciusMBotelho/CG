@@ -1,7 +1,5 @@
 #include "Cena.hpp"
 #include "cena_inicial.hpp"
-#include <fstream>
-#include <sstream>
 #include <iostream>
 
 Cena::Cena() : indiceObjetoAtivo(0) {
@@ -57,44 +55,4 @@ void Cena::carregarDeCenaBase(const std::vector<ObjetoBase>& cenaBase) {
 void Cena::inicializarObjetosPadrao() {
     std::vector<ObjetoBase> cenaBase = criarCenaInicial();
     carregarDeCenaBase(cenaBase);
-}
-
-bool Cena::carregarDeArquivo(const std::string& caminhoArquivo) {
-    std::ifstream file(caminhoArquivo);
-    if (!file.is_open()) {
-        std::cerr << "Não foi possível abrir o arquivo: " << caminhoArquivo << std::endl;
-        return false;
-    }
-
-    // Leitor de arquivo genérico se fornecido pelo professor
-    std::string line;
-    Objeto2D* objAtual = nullptr;
-
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string token;
-        if (!(iss >> token)) continue;
-
-        if (token == "OBJETO") {
-            std::string nomeObj;
-            iss >> nomeObj;
-            objetos.emplace_back(nomeObj);
-            objAtual = &objetos.back();
-        } else if (token == "POLIGONO") {
-            float r = 1.0f, g = 1.0f, b = 1.0f;
-            iss >> r >> g >> b;
-            if (objAtual) {
-                objAtual->adicionarPoligono(Poligono(glm::vec3(r, g, b)));
-                // Recupera ponteiro para o polígono recém inserido
-                // (nota: evitar ponteiro se vetor realocar, então pegamos referência ao término)
-            }
-        } else if (token == "VERTICE") {
-            float x, y;
-            iss >> x >> y;
-            if (objAtual && !objAtual->getPoligonos().empty()) {
-                objAtual->getPoligonos().back().adicionarVertice(x, y);
-            }
-        }
-    }
-    return true;
 }

@@ -5,8 +5,6 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
-#include <unistd.h>
-#include <poll.h>
 
 Aplicacao* Aplicacao::instancia = nullptr;
 
@@ -16,14 +14,13 @@ Aplicacao::Aplicacao(int largura, int altura, const std::string& titulo)
       mousePressionado(false), mouseUltimoX(0), mouseUltimoY(0) {
     instancia = this;
 
-    // Configuração inicial da viewport principal e janela do mundo
-    // Viewport gráfica ocupa o lado esquerdo e central
+    // Viewport gráfica ocupa a esquerda e o centro; painel ocupa a direita
     float vpXMin = 30.0f;
     float vpXMax = 720.0f;
     float vpYMin = 40.0f;
     float vpYMax = alturaJanela - 30.0f;
 
-    // Janela do mundo padrão de [-120, 120] em X e Y
+    // Janela do mundo de [-120, 120] em X e Y
     JanelaMundo mundo(-120.0f, 120.0f, -120.0f, 120.0f);
     RegiaoViewport regiao(vpXMin, vpXMax, vpYMin, vpYMax);
     viewportPrincipal = Viewport(mundo, regiao);
@@ -42,17 +39,30 @@ void Aplicacao::inicializar(int argc, char** argv) {
 
     glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
 
-    // Callbacks do GLUT
+    // Registra callbacks do GLUT
     glutDisplayFunc(callbackDisplay);
     glutReshapeFunc(callbackReshape);
     glutKeyboardFunc(callbackKeyboard);
     glutSpecialFunc(callbackSpecial);
     glutMouseFunc(callbackMouse);
     glutMotionFunc(callbackMotion);
-    glutIdleFunc(callbackIdle);
 
-    exibirAjudaTerminal();
-    std::cout << "\n[CG-Terminal]> " << std::flush;
+    std::cout << "===========================================================\n"
+              << "       TP1 - COMPUTACAO GRAFICA: TRANSFORMACOES 2D        \n"
+              << "===========================================================\n"
+              << "ATALHOS DE TECLADO NA JANELA GRAFICA:\n"
+              << "  [1, 2, 3] : Selecionar objeto ativo (Casa, Barco, Moinho)\n"
+              << "  Setas     : Transladar nos eixos X e Y\n"
+              << "  R / r     : Rotacionar pelo centro geometrico (+/- 5 deg)\n"
+              << "  O / o     : Rotacionar pela origem (0,0) (+/- 5 deg)\n"
+              << "  + / -     : Escala uniforme (+10% / -10%)\n"
+              << "  ] / [     : Escala nao-uniforme no eixo X (+10% / -10%)\n"
+              << "  H / h     : Cisalhamento (Shear Y / X)\n"
+              << "  X / Y     : Reflexao nos eixos X e Y\n"
+              << "  0 (zero)  : Resetar matriz acumulada M para Identidade\n"
+              << "  D         : Alternar ordem normal vs ordem contraria\n"
+              << "  Q / Esc   : Sair da aplicacao\n"
+              << "===========================================================\n";
 }
 
 void Aplicacao::executar() {
@@ -70,14 +80,14 @@ void Aplicacao::callbackReshape(int w, int h) {
         instancia->larguraJanela = w;
         instancia->alturaJanela = h;
 
-        // Projeção 2D de tela: X de 0 a w, Y de 0 a h (0 no topo, h na base)
+        // Projeção 2D ortogonal em pixels da tela: X de 0 a w, Y de 0 a h (0 no topo, h na base)
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         gluOrtho2D(0.0, static_cast<double>(w), static_cast<double>(h), 0.0);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
 
-        // Atualiza a área da viewport gráfica mantendo o painel lateral sem sobreposição
+        // Atualiza a região da viewport gráfica mantendo o painel lateral à direita
         float painelLargura = 330.0f;
         if (static_cast<float>(w) < 700.0f) {
             painelLargura = static_cast<float>(w) * 0.45f;
@@ -94,8 +104,7 @@ void Aplicacao::callbackReshape(int w, int h) {
 }
 
 void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
-    (void)x;
-    (void)y;
+    (void)x; (void)y;
     if (!instancia) return;
 
     Objeto2D* obj = instancia->cena.getObjetoAtivo();
@@ -107,12 +116,13 @@ void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
             int idx = key - '1';
             if (idx < static_cast<int>(instancia->cena.getObjetos().size())) {
                 instancia->cena.setIndiceObjetoAtivo(idx);
-                std::cout << "\nObjeto ativo: " << instancia->cena.getObjetoAtivo()->getNome() << "\n[CG-Terminal]> " << std::flush;
+                std::cout << ">> Objeto ativo: [" << (idx + 1) << "] "
+                          << instancia->cena.getObjetoAtivo()->getNome() << "\n";
             }
             break;
         }
 
-        // Rotação em torno do centro geométrico
+        // Rotação no Centro Geométrico
         case 'r':
             if (obj) obj->rotacionarCentro(glm::radians(5.0f));
             break;
@@ -120,7 +130,7 @@ void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
             if (obj) obj->rotacionarCentro(glm::radians(-5.0f));
             break;
 
-        // Rotação em torno da origem do mundo
+        // Rotação na Origem (0, 0)
         case 'o':
             if (obj) obj->rotacionarOrigem(glm::radians(5.0f));
             break;
@@ -128,17 +138,15 @@ void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
             if (obj) obj->rotacionarOrigem(glm::radians(-5.0f));
             break;
 
-        // Escala uniforme
-        case '+':
-        case '=':
+        // Escala Uniforme
+        case '+': case '=':
             if (obj) obj->escalarCentro(1.1f, 1.1f);
             break;
-        case '-':
-        case '_':
+        case '-': case '_':
             if (obj) obj->escalarCentro(0.9f, 0.9f);
             break;
 
-        // Escala não uniforme
+        // Escala Não-Uniforme no eixo X
         case ']':
             if (obj) obj->escalarCentro(1.1f, 1.0f);
             break;
@@ -154,43 +162,33 @@ void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
             if (obj) obj->cisalhar(0.0f, 0.1f);
             break;
 
-        // Reflexão em X e Y
-        case 'x':
-        case 'X':
+        // Reflexão / Espelhamento
+        case 'x': case 'X':
             if (obj) obj->espelharX();
             break;
-        case 'y':
-        case 'Y':
+        case 'y': case 'Y':
             if (obj) obj->espelharY();
             break;
 
-        // Reset da matriz acumulada
+        // Reset da Matriz Acumulada M para a Identidade
         case '0':
             if (obj) {
                 obj->resetar();
-                std::cout << "\nMatriz do objeto " << obj->getNome() << " reiniciada para a Identidade.\n[CG-Terminal]> " << std::flush;
+                std::cout << ">> Reset: Matriz M de " << obj->getNome() << " voltou a Identidade.\n";
             }
             break;
 
-        // Modo Demonstração da ordem de transformações (T*S vs S*T)
-        case 'd':
-        case 'D':
+        // Alternar modo de ordem contrária (Etapa 4)
+        case 'd': case 'D':
             instancia->toggleModoDemonstracao();
-            std::cout << "\nModo demonstracao: " << (instancia->isModoDemonstracao() ? "ATIVADO" : "DESATIVADO") << "\n[CG-Terminal]> " << std::flush;
+            std::cout << ">> Modo Demonstracao da Ordem: "
+                      << (instancia->isModoDemonstracao() ? "ORDEM CONTRARIA (M * Nova)" : "NORMAL (Nova * M)")
+                      << "\n";
             break;
 
-        // Captura de tela
-        case 'p':
-        case 'P':
-            instancia->salvarCaptura("captura_tela.png");
-            break;
-
-        // Sair
-        case 27: // ESC
-        case 'q':
-        case 'Q':
+        case 27: case 'q': case 'Q':
+            std::cout << "Encerrando aplicacao.\n";
             exit(0);
-            break;
 
         default:
             break;
@@ -200,28 +198,18 @@ void Aplicacao::callbackKeyboard(unsigned char key, int x, int y) {
 }
 
 void Aplicacao::callbackSpecial(int key, int x, int y) {
-    (void)x;
-    (void)y;
+    (void)x; (void)y;
     if (!instancia) return;
     Objeto2D* obj = instancia->cena.getObjetoAtivo();
     if (!obj) return;
 
     float passo = 5.0f;
     switch (key) {
-        case GLUT_KEY_LEFT:
-            obj->transladar(-passo, 0.0f);
-            break;
-        case GLUT_KEY_RIGHT:
-            obj->transladar(passo, 0.0f);
-            break;
-        case GLUT_KEY_UP:
-            obj->transladar(0.0f, passo);
-            break;
-        case GLUT_KEY_DOWN:
-            obj->transladar(0.0f, -passo);
-            break;
-        default:
-            break;
+        case GLUT_KEY_LEFT:  obj->transladar(-passo, 0.0f); break;
+        case GLUT_KEY_RIGHT: obj->transladar(passo, 0.0f);  break;
+        case GLUT_KEY_UP:    obj->transladar(0.0f, passo);  break;
+        case GLUT_KEY_DOWN:  obj->transladar(0.0f, -passo); break;
+        default: break;
     }
 
     glutPostRedisplay();
@@ -236,13 +224,13 @@ void Aplicacao::callbackMouse(int button, int state, int x, int y) {
             instancia->mouseUltimoX = x;
             instancia->mouseUltimoY = y;
 
-            // Se clicou na viewport, seleciona o objeto mais próximo
+            // Se clicou dentro da viewport, seleciona o objeto mais próximo
             if (instancia->viewportPrincipal.contemPonto(x, y)) {
                 glm::vec2 pMundo = instancia->viewportPrincipal.viewportParaMundo(glm::vec2(x, y));
                 float menorDist = 1e9f;
                 int melhorIdx = -1;
                 for (size_t i = 0; i < instancia->cena.getObjetos().size(); ++i) {
-                    glm::vec2 c = instancia->cena.getObjetos()[i].calcularCentroAtual();
+                    glm::vec2 c = instancia->cena.getObjetos()[i].calcularCentroAtual(instancia->isModoDemonstracao());
                     float dist = glm::distance(pMundo, c);
                     if (dist < menorDist) {
                         menorDist = dist;
@@ -251,7 +239,8 @@ void Aplicacao::callbackMouse(int button, int state, int x, int y) {
                 }
                 if (melhorIdx != -1 && menorDist < 50.0f) {
                     instancia->cena.setIndiceObjetoAtivo(melhorIdx);
-                    std::cout << "\nObjeto selecionado por clique: " << instancia->cena.getObjetoAtivo()->getNome() << "\n[CG-Terminal]> " << std::flush;
+                    std::cout << ">> Objeto selecionado por clique: "
+                              << instancia->cena.getObjetoAtivo()->getNome() << "\n";
                     glutPostRedisplay();
                 }
             } else {
@@ -264,8 +253,8 @@ void Aplicacao::callbackMouse(int button, int state, int x, int y) {
                         float itemY = yListaInicio + static_cast<float>(i) * 18.0f;
                         if (y >= itemY - 14.0f && y <= itemY + 4.0f) {
                             instancia->cena.setIndiceObjetoAtivo(static_cast<int>(i));
-                            std::cout << "\nObjeto selecionado por clique no painel: "
-                                      << instancia->cena.getObjetoAtivo()->getNome() << "\n[CG-Terminal]> " << std::flush;
+                            std::cout << ">> Objeto selecionado por clique no painel: "
+                                      << instancia->cena.getObjetoAtivo()->getNome() << "\n";
                             glutPostRedisplay();
                             break;
                         }
@@ -298,12 +287,6 @@ void Aplicacao::callbackMotion(int x, int y) {
     glutPostRedisplay();
 }
 
-void Aplicacao::callbackIdle() {
-    if (instancia) {
-        instancia->verificarEntradaTerminal();
-    }
-}
-
 void Aplicacao::desenharCena() {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -321,7 +304,7 @@ void Aplicacao::desenharCena() {
 void Aplicacao::desenharViewportNormal() {
     const RegiaoViewport& regiao = viewportPrincipal.getRegiao();
 
-    // 1. Fundo da Viewport Gráfica (Preto suave)
+    // 1. Fundo da Viewport Gráfica
     desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.02f, 0.02f, 0.04f), true);
 
     // 2. Borda externa da Viewport
@@ -329,34 +312,32 @@ void Aplicacao::desenharViewportNormal() {
 
     // 3. Título da Viewport
     glColor3f(0.8f, 0.8f, 0.9f);
-    desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "VIEWPORT GRAFICA (SISTEMA DE COORDENADAS DO MUNDO)", GLUT_BITMAP_HELVETICA_12);
+    desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "VIEWPORT GRAFICA [NORMAL: Nova * M] - (Pressione 'D' para Ordem Contraria)", GLUT_BITMAP_HELVETICA_12);
 
-    // Habilita teste de tesoura (scissor test) para garantir que nada transborde da viewport
     glEnable(GL_SCISSOR_TEST);
     glScissor(static_cast<GLint>(regiao.xMin),
               static_cast<GLint>(alturaJanela - regiao.yMax),
               static_cast<GLsizei>(regiao.getLargura()),
               static_cast<GLsizei>(regiao.getAltura()));
 
-    // 4. Eixos Cartesianos do Mundo com marcações
+    // 4. Eixos Cartesianos do Mundo com graduações
     desenharEixosCartesianos(viewportPrincipal, 25.0f);
 
     // 5. Desenhar Objetos da Cena
     const auto& objs = cena.getObjetos();
     for (size_t i = 0; i < objs.size(); ++i) {
-        // Se for o objeto ativo, podemos desenhar seu centro ou indicar
-        desenharObjeto(objs[i], viewportPrincipal, false);
+        desenharObjeto(objs[i], viewportPrincipal, false, false);
 
         // Se estiver ativo, desenha uma cruz discreta no centro geométrico atual
         if (static_cast<int>(i) == cena.getIndiceObjetoAtivo()) {
-            glm::vec2 centroMundo = objs[i].calcularCentroAtual();
+            glm::vec2 centroMundo = objs[i].calcularCentroAtual(false);
             glm::vec2 centroVp = viewportPrincipal.mundoParaViewport(centroMundo);
             glColor3f(1.0f, 1.0f, 1.0f);
             glBegin(GL_LINES);
-            glVertex2f(centroVp.x - 5.0f, centroVp.y);
-            glVertex2f(centroVp.x + 5.0f, centroVp.y);
-            glVertex2f(centroVp.x, centroVp.y - 5.0f);
-            glVertex2f(centroVp.x, centroVp.y + 5.0f);
+            glVertex2f(centroVp.x - 6.0f, centroVp.y);
+            glVertex2f(centroVp.x + 6.0f, centroVp.y);
+            glVertex2f(centroVp.x, centroVp.y - 6.0f);
+            glVertex2f(centroVp.x, centroVp.y + 6.0f);
             glEnd();
         }
     }
@@ -365,115 +346,45 @@ void Aplicacao::desenharViewportNormal() {
 }
 
 void Aplicacao::desenharDemonstracaoOrdem() {
-    float x1 = viewportPrincipal.getRegiao().xMin;
-    float x2 = viewportPrincipal.getRegiao().xMax;
-    float y1 = 40.0f;
-    float y2 = static_cast<float>(alturaJanela) - 30.0f;
-    float larguraTotal = x2 - x1;
-    float meioX = x1 + larguraTotal * 0.5f;
+    const RegiaoViewport& regiao = viewportPrincipal.getRegiao();
 
-    // Fundo geral do modo demo
-    desenharRetangulo(x1, y1, x2, y2, glm::vec3(0.02f, 0.02f, 0.03f), true);
-    desenharRetangulo(x1, y1, x2, y2, glm::vec3(0.3f, 0.7f, 0.9f), false);
+    // 1. Fundo com matiz avermelhado/alerta
+    desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.05f, 0.01f, 0.02f), true);
 
-    // Cabeçalho Central
-    glColor3f(1.0f, 1.0f, 0.4f);
-    desenharTexto(x1 + (larguraTotal * 0.5f) - 130.0f, y1 + 25.0f, "A ordem das transformacoes importa", GLUT_BITMAP_HELVETICA_18);
+    // 2. Borda de destaque avermelhada
+    desenharRetangulo(regiao.xMin, regiao.yMin, regiao.xMax, regiao.yMax, glm::vec3(0.95f, 0.35f, 0.35f), false);
 
-    // Divisória vertical central
-    glColor3f(0.3f, 0.3f, 0.4f);
-    glBegin(GL_LINES);
-    glVertex2f(meioX, y1 + 45.0f);
-    glVertex2f(meioX, y2 - 20.0f);
-    glEnd();
+    // 3. Título explicativo
+    glColor3f(1.0f, 0.4f, 0.4f);
+    desenharTexto(regiao.xMin + 10.0f, regiao.yMin - 10.0f, "ORDEM CONTRARIA (M * Nova) - [Pressione 'D' para voltar ao Normal]", GLUT_BITMAP_HELVETICA_12);
 
-    // Viewport da Esquerda (T * S)
-    JanelaMundo jmLocal(-4.0f, 4.0f, -4.0f, 4.0f);
-    RegiaoViewport vpEsq(x1 + 15.0f, meioX - 15.0f, y1 + 75.0f, y2 - 20.0f);
-    Viewport viewportEsquerda(jmLocal, vpEsq);
-
-    // Viewport da Direita (S * T)
-    RegiaoViewport vpDir(meioX + 15.0f, x2 - 15.0f, y1 + 75.0f, y2 - 20.0f);
-    Viewport viewportDireita(jmLocal, vpDir);
-
-    // Textos explicativos superiores
-    glColor3f(0.9f, 0.9f, 0.9f);
-    desenharTexto(vpEsq.xMin + (vpEsq.getLargura() * 0.5f) - 75.0f, y1 + 45.0f, "1. Escala -> 2. Translacao", GLUT_BITMAP_HELVETICA_12);
-    glColor3f(0.4f, 0.8f, 1.0f);
-    desenharTexto(vpEsq.xMin + (vpEsq.getLargura() * 0.5f) - 15.0f, y1 + 62.0f, "T . S", GLUT_BITMAP_HELVETICA_12);
-
-    glColor3f(0.9f, 0.9f, 0.9f);
-    desenharTexto(vpDir.xMin + (vpDir.getLargura() * 0.5f) - 75.0f, y1 + 45.0f, "1. Translacao -> 2. Escala", GLUT_BITMAP_HELVETICA_12);
-    glColor3f(0.4f, 0.8f, 1.0f);
-    desenharTexto(vpDir.xMin + (vpDir.getLargura() * 0.5f) - 15.0f, y1 + 62.0f, "S . T", GLUT_BITMAP_HELVETICA_12);
-
-    // Objeto base para a demonstração (Barco simplificado centrado na origem)
-    Objeto2D barcoDemo("BarcoDemo");
-    {
-        // Casco
-        Poligono casco(glm::vec3(0.15f, 0.55f, 0.75f));
-        casco.adicionarVertice(-1.0f, -0.6f);
-        casco.adicionarVertice(1.0f, -0.6f);
-        casco.adicionarVertice(1.4f, -0.1f);
-        casco.adicionarVertice(-1.4f, -0.1f);
-        barcoDemo.adicionarPoligono(casco);
-
-        // Mastro
-        Poligono mastro(glm::vec3(0.6f, 0.4f, 0.2f));
-        mastro.adicionarVertice(-0.05f, -0.1f);
-        mastro.adicionarVertice(0.05f, -0.1f);
-        mastro.adicionarVertice(0.05f, 0.9f);
-        mastro.adicionarVertice(-0.05f, 0.9f);
-        barcoDemo.adicionarPoligono(mastro);
-
-        // Vela
-        Poligono vela(glm::vec3(1.0f, 0.55f, 0.1f));
-        vela.adicionarVertice(0.05f, 0.0f);
-        vela.adicionarVertice(0.9f, 0.0f);
-        vela.adicionarVertice(0.05f, 0.8f);
-        barcoDemo.adicionarPoligono(vela);
-    }
-
-    // Matrizes para a demonstração:
-    // Escala S (sx=0.5, sy=0.5) e Translação T (dx=1.8, dy=1.8)
-    glm::mat3 S = Transformacoes::escala(0.5f, 0.5f);
-    glm::mat3 T = Transformacoes::translacao(1.8f, 1.8f);
-
-    glm::mat3 M_TS = T * S; // 1. Escala, depois Translação: T * S
-    glm::mat3 M_ST = S * T; // 1. Translação, depois Escala: S * T
-
-    // ================= Desenho no Lado Esquerdo =================
     glEnable(GL_SCISSOR_TEST);
-    glScissor(static_cast<GLint>(vpEsq.xMin),
-              static_cast<GLint>(alturaJanela - vpEsq.yMax),
-              static_cast<GLsizei>(vpEsq.getLargura()),
-              static_cast<GLsizei>(vpEsq.getAltura()));
+    glScissor(static_cast<GLint>(regiao.xMin),
+              static_cast<GLint>(alturaJanela - regiao.yMax),
+              static_cast<GLsizei>(regiao.getLargura()),
+              static_cast<GLsizei>(regiao.getAltura()));
 
-    desenharEixosCartesianos(viewportEsquerda, 1.0f);
+    // 4. Eixos cartesianos
+    desenharEixosCartesianos(viewportPrincipal, 25.0f);
 
-    // Desenha original em aramado na origem
-    barcoDemo.resetar();
-    desenharObjeto(barcoDemo, viewportEsquerda, true);
+    // 5. Desenhar objetos: fantasma da ordem normal em aramado e resultado da ordem inversa preenchido
+    const auto& objs = cena.getObjetos();
+    for (size_t i = 0; i < objs.size(); ++i) {
+        desenharObjeto(objs[i], viewportPrincipal, true, false);  // Fantasma normal aramado
+        desenharObjeto(objs[i], viewportPrincipal, false, true); // Ordem contrária preenchido
 
-    // Desenha objeto transformado por T * S
-    barcoDemo.setMatrizAcumulada(M_TS);
-    desenharObjeto(barcoDemo, viewportEsquerda, false);
-
-    // ================= Desenho no Lado Direito =================
-    glScissor(static_cast<GLint>(vpDir.xMin),
-              static_cast<GLint>(alturaJanela - vpDir.yMax),
-              static_cast<GLsizei>(vpDir.getLargura()),
-              static_cast<GLsizei>(vpDir.getAltura()));
-
-    desenharEixosCartesianos(viewportDireita, 1.0f);
-
-    // Desenha original em aramado na origem
-    barcoDemo.resetar();
-    desenharObjeto(barcoDemo, viewportDireita, true);
-
-    // Desenha objeto transformado por S * T
-    barcoDemo.setMatrizAcumulada(M_ST);
-    desenharObjeto(barcoDemo, viewportDireita, false);
+        if (static_cast<int>(i) == cena.getIndiceObjetoAtivo()) {
+            glm::vec2 centroMundo = objs[i].calcularCentroAtual(true);
+            glm::vec2 centroVp = viewportPrincipal.mundoParaViewport(centroMundo);
+            glColor3f(1.0f, 0.3f, 0.3f);
+            glBegin(GL_LINES);
+            glVertex2f(centroVp.x - 6.0f, centroVp.y);
+            glVertex2f(centroVp.x + 6.0f, centroVp.y);
+            glVertex2f(centroVp.x, centroVp.y - 6.0f);
+            glVertex2f(centroVp.x, centroVp.y + 6.0f);
+            glEnd();
+        }
+    }
 
     glDisable(GL_SCISSOR_TEST);
 }
@@ -481,7 +392,6 @@ void Aplicacao::desenharDemonstracaoOrdem() {
 void Aplicacao::desenharEixosCartesianos(const Viewport& vp, float passo) {
     const JanelaMundo& jm = vp.getMundo();
 
-    // 1. Linhas dos eixos principais (X=0 e Y=0)
     glm::vec2 pXInicio = vp.mundoParaViewport(glm::vec2(jm.xMin, 0.0f));
     glm::vec2 pXFim    = vp.mundoParaViewport(glm::vec2(jm.xMax, 0.0f));
     glm::vec2 pYInicio = vp.mundoParaViewport(glm::vec2(0.0f, jm.yMin));
@@ -490,23 +400,19 @@ void Aplicacao::desenharEixosCartesianos(const Viewport& vp, float passo) {
     glColor3f(0.45f, 0.45f, 0.50f);
     glLineWidth(1.2f);
     glBegin(GL_LINES);
-    // Eixo X
     glVertex2f(pXInicio.x, pXInicio.y);
     glVertex2f(pXFim.x, pXFim.y);
-    // Eixo Y
     glVertex2f(pYInicio.x, pYInicio.y);
     glVertex2f(pYFim.x, pYFim.y);
     glEnd();
 
     // Setas nos eixos
-    // Seta X
     glBegin(GL_LINES);
     glVertex2f(pXFim.x, pXFim.y);
     glVertex2f(pXFim.x - 6.0f, pXFim.y - 4.0f);
     glVertex2f(pXFim.x, pXFim.y);
     glVertex2f(pXFim.x - 6.0f, pXFim.y + 4.0f);
 
-    // Seta Y (aponta para cima no mundo, que é para cima na tela/viewport)
     glVertex2f(pYFim.x, pYFim.y);
     glVertex2f(pYFim.x - 4.0f, pYFim.y + 6.0f);
     glVertex2f(pYFim.x, pYFim.y);
@@ -516,9 +422,9 @@ void Aplicacao::desenharEixosCartesianos(const Viewport& vp, float passo) {
     desenharTexto(pXFim.x - 15.0f, pXFim.y - 6.0f, "x", GLUT_BITMAP_HELVETICA_12);
     desenharTexto(pYFim.x + 8.0f, pYFim.y + 12.0f, "y", GLUT_BITMAP_HELVETICA_12);
 
-    // 2. Graduações (Ticks) e números no Eixo X
+    // Graduações no Eixo X
     for (float x = std::ceil(jm.xMin / passo) * passo; x <= jm.xMax; x += passo) {
-        if (std::abs(x) < 0.001f) continue; // Pula o 0
+        if (std::abs(x) < 0.001f) continue;
         glm::vec2 pt = vp.mundoParaViewport(glm::vec2(x, 0.0f));
 
         glColor3f(0.5f, 0.5f, 0.55f);
@@ -536,9 +442,9 @@ void Aplicacao::desenharEixosCartesianos(const Viewport& vp, float passo) {
         desenharTexto(pt.x - offset, pt.y + 14.0f, strNum, GLUT_BITMAP_HELVETICA_10);
     }
 
-    // 3. Graduações (Ticks) e números no Eixo Y
+    // Graduações no Eixo Y
     for (float y = std::ceil(jm.yMin / passo) * passo; y <= jm.yMax; y += passo) {
-        if (std::abs(y) < 0.001f) continue; // Pula o 0
+        if (std::abs(y) < 0.001f) continue;
         glm::vec2 pt = vp.mundoParaViewport(glm::vec2(0.0f, y));
 
         glColor3f(0.5f, 0.5f, 0.55f);
@@ -556,8 +462,8 @@ void Aplicacao::desenharEixosCartesianos(const Viewport& vp, float passo) {
     }
 }
 
-void Aplicacao::desenharObjeto(const Objeto2D& obj, const Viewport& vp, bool aramado) {
-    const glm::mat3& M = obj.getMatrizAcumulada();
+void Aplicacao::desenharObjeto(const Objeto2D& obj, const Viewport& vp, bool aramado, bool ordemInversa) {
+    const glm::mat3& M = ordemInversa ? obj.getMatrizOrdemInversa() : obj.getMatrizAcumulada();
 
     for (const auto& poly : obj.getPoligonos()) {
         const glm::vec3& cor = poly.getCor();
@@ -572,25 +478,21 @@ void Aplicacao::desenharObjeto(const Objeto2D& obj, const Viewport& vp, bool ara
         }
 
         for (const auto& v : poly.getVertices()) {
-            // Passo 1: Aplicar matriz acumulada de transformações homogêneas 3x3 no mundo
-            glm::vec2 pMundoTransf = Transformacoes::aplicar(M, v.posicao);
-
-            // Passo 2: Mapeamento explícito mundo -> viewport com inversão do eixo Y
-            glm::vec2 pVp = vp.mundoParaViewport(pMundoTransf);
-
-            // Passo 3: Envio direto das coordenadas finais da janela ao OpenGL
+            glm::vec3 pHomogeneo(v.posicao.x, v.posicao.y, 1.0f);
+            glm::vec3 pMundoTransf = M * pHomogeneo;
+            glm::vec2 pVp = vp.mundoParaViewport(glm::vec2(pMundoTransf.x, pMundoTransf.y));
             glVertex2f(pVp.x, pVp.y);
         }
         glEnd();
 
-        // Se for preenchido, desenha borda fina para melhor contraste visual
         if (!aramado) {
             glColor3f(cor.r * 0.35f, cor.g * 0.35f, cor.b * 0.35f);
             glLineWidth(1.0f);
             glBegin(GL_LINE_LOOP);
             for (const auto& v : poly.getVertices()) {
-                glm::vec2 pMundoTransf = Transformacoes::aplicar(M, v.posicao);
-                glm::vec2 pVp = vp.mundoParaViewport(pMundoTransf);
+                glm::vec3 pHomogeneo(v.posicao.x, v.posicao.y, 1.0f);
+                glm::vec3 pMundoTransf = M * pHomogeneo;
+                glm::vec2 pVp = vp.mundoParaViewport(glm::vec2(pMundoTransf.x, pMundoTransf.y));
                 glVertex2f(pVp.x, pVp.y);
             }
             glEnd();
@@ -626,7 +528,7 @@ void Aplicacao::desenharPainelLateral() {
     // Objeto Selecionado
     const Objeto2D* objAtivo = cena.getObjetoAtivo();
     glColor3f(1.0f, 1.0f, 1.0f);
-    desenharTexto(xMin + 15.0f, yAtual, "OBJETO ATIVO:", GLUT_BITMAP_HELVETICA_12);
+    desenharTexto(xMin + 15.0f, yAtual, "OBJETO ATIVO (Clique para selecionar):", GLUT_BITMAP_HELVETICA_12);
     yAtual += 18.0f;
 
     for (size_t i = 0; i < cena.getObjetos().size(); ++i) {
@@ -643,40 +545,73 @@ void Aplicacao::desenharPainelLateral() {
 
     yAtual += 10.0f;
 
-    // Matriz Acumulada M do objeto ativo
+    // Matrizes do objeto ativo (Normal e Ordem Inversa para comparação)
     if (objAtivo) {
-        const glm::mat3& M = objAtivo->getMatrizAcumulada();
-        glm::vec2 cAtual = objAtivo->calcularCentroAtual();
+        const glm::mat3& M_norm = objAtivo->getMatrizAcumulada();
+        const glm::mat3& M_inv  = objAtivo->getMatrizOrdemInversa();
+        glm::vec2 cNorm = objAtivo->calcularCentroAtual(false);
+        glm::vec2 cInv  = objAtivo->calcularCentroAtual(true);
 
         glColor3f(1.0f, 0.85f, 0.3f);
-        desenharTexto(xMin + 15.0f, yAtual, "CENTRO (Mundo): (" + std::to_string(static_cast<int>(cAtual.x)) + ", " + std::to_string(static_cast<int>(cAtual.y)) + ")", GLUT_BITMAP_HELVETICA_10);
-        yAtual += 20.0f;
+        desenharTexto(xMin + 15.0f, yAtual, "CENTRO (Normal): (" + std::to_string(static_cast<int>(cNorm.x)) + ", " + std::to_string(static_cast<int>(cNorm.y)) + ")", GLUT_BITMAP_HELVETICA_10);
+        yAtual += 14.0f;
+        desenharTexto(xMin + 15.0f, yAtual, "CENTRO (Inverso): (" + std::to_string(static_cast<int>(cInv.x)) + ", " + std::to_string(static_cast<int>(cInv.y)) + ")", GLUT_BITMAP_HELVETICA_10);
+        yAtual += 18.0f;
 
-        glColor3f(0.8f, 0.85f, 0.95f);
-        desenharTexto(xMin + 15.0f, yAtual, "MATRIZ ACUMULADA M (3x3):", GLUT_BITMAP_HELVETICA_12);
-        yAtual += 16.0f;
+        // 1. Matriz Acumulada Normal (Nova * M)
+        if (!modoDemonstracaoOrdem) {
+            glColor3f(0.3f, 0.9f, 0.5f);
+            desenharTexto(xMin + 15.0f, yAtual, "MATRIZ NORMAL [Nova * M] (ATIVA):", GLUT_BITMAP_HELVETICA_12);
+        } else {
+            glColor3f(0.7f, 0.75f, 0.8f);
+            desenharTexto(xMin + 15.0f, yAtual, "MATRIZ NORMAL [Nova * M]:", GLUT_BITMAP_HELVETICA_12);
+        }
+        yAtual += 15.0f;
 
-        // Formatação 3x3
         for (int r = 0; r < 3; ++r) {
             std::ostringstream ss;
             ss << "[ ";
             for (int c = 0; c < 3; ++c) {
-                ss << std::fixed << std::setprecision(2) << std::setw(6) << M[c][r] << " ";
+                ss << std::fixed << std::setprecision(2) << std::setw(6) << M_norm[c][r] << " ";
             }
             ss << "]";
             glColor3f(0.6f, 0.9f, 0.7f);
-            desenharTexto(xMin + 25.0f, yAtual, ss.str(), GLUT_BITMAP_9_BY_15);
-            yAtual += 16.0f;
+            desenharTexto(xMin + 20.0f, yAtual, ss.str(), GLUT_BITMAP_9_BY_15);
+            yAtual += 15.0f;
+        }
+
+        yAtual += 6.0f;
+
+        // 2. Matriz Ordem Inversa (M * Nova)
+        if (modoDemonstracaoOrdem) {
+            glColor3f(1.0f, 0.4f, 0.4f);
+            desenharTexto(xMin + 15.0f, yAtual, "MATRIZ ORDEM INVERSA [M * Nova] (ATIVA):", GLUT_BITMAP_HELVETICA_12);
+        } else {
+            glColor3f(0.9f, 0.6f, 0.6f);
+            desenharTexto(xMin + 15.0f, yAtual, "MATRIZ ORDEM INVERSA [M * Nova]:", GLUT_BITMAP_HELVETICA_12);
+        }
+        yAtual += 15.0f;
+
+        for (int r = 0; r < 3; ++r) {
+            std::ostringstream ss;
+            ss << "[ ";
+            for (int c = 0; c < 3; ++c) {
+                ss << std::fixed << std::setprecision(2) << std::setw(6) << M_inv[c][r] << " ";
+            }
+            ss << "]";
+            glColor3f(1.0f, 0.65f, 0.65f);
+            desenharTexto(xMin + 20.0f, yAtual, ss.str(), GLUT_BITMAP_9_BY_15);
+            yAtual += 15.0f;
         }
     }
 
-    yAtual += 15.0f;
+    yAtual += 10.0f;
     glColor3f(0.25f, 0.30f, 0.38f);
     glBegin(GL_LINES);
     glVertex2f(xMin + 10.0f, yAtual);
     glVertex2f(xMax - 10.0f, yAtual);
     glEnd();
-    yAtual += 20.0f;
+    yAtual += 16.0f;
 
     // Atalhos do Teclado
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -692,19 +627,8 @@ void Aplicacao::desenharPainelLateral() {
     desenharTexto(xMin + 20.0f, yAtual, "H / h : Cisalhamento (X / Y)", GLUT_BITMAP_HELVETICA_10); yAtual += 15.0f;
     desenharTexto(xMin + 20.0f, yAtual, "X / Y : Espelhar Eixo X / Y", GLUT_BITMAP_HELVETICA_10); yAtual += 15.0f;
     desenharTexto(xMin + 20.0f, yAtual, "0 (zero) : Resetar Matriz M", GLUT_BITMAP_HELVETICA_10); yAtual += 15.0f;
-    desenharTexto(xMin + 20.0f, yAtual, "D : Alternar Modo Ordem (T*S)", GLUT_BITMAP_HELVETICA_10); yAtual += 15.0f;
+    desenharTexto(xMin + 20.0f, yAtual, "D : Alternar Ordem Inversa", GLUT_BITMAP_HELVETICA_10); yAtual += 15.0f;
     desenharTexto(xMin + 20.0f, yAtual, "Clique + Arraste : Mover Objeto", GLUT_BITMAP_HELVETICA_10); yAtual += 20.0f;
-
-    // Nota sobre terminal
-    glColor3f(0.4f, 0.8f, 1.0f);
-    desenharTexto(xMin + 15.0f, yAtual, "COMANDOS DE TERMINAL:", GLUT_BITMAP_HELVETICA_12);
-    yAtual += 16.0f;
-    glColor3f(0.7f, 0.7f, 0.7f);
-    desenharTexto(xMin + 20.0f, yAtual, "Digite comandos no console:", GLUT_BITMAP_HELVETICA_10);
-    yAtual += 14.0f;
-    desenharTexto(xMin + 20.0f, yAtual, "ex: transladar 10 20 | escala 1.2", GLUT_BITMAP_HELVETICA_10);
-    yAtual += 14.0f;
-    desenharTexto(xMin + 20.0f, yAtual, "Digite 'ajuda' no terminal.", GLUT_BITMAP_HELVETICA_10);
 }
 
 void Aplicacao::desenharTexto(float x, float y, const std::string& texto, void* fonte) {
@@ -766,7 +690,6 @@ void Aplicacao::salvarCaptura(const std::string& caminhoArquivo) {
     }
 
     fprintf(fp, "P6\n%d %d\n255\n", larguraJanela, alturaJanela);
-    // Inverte verticalmente pois glReadPixels lê de baixo para cima
     for (int y = alturaJanela - 1; y >= 0; --y) {
         fwrite(&pixels[y * larguraJanela * 3], 1, larguraJanela * 3, fp);
     }
@@ -779,221 +702,5 @@ void Aplicacao::salvarCaptura(const std::string& caminhoArquivo) {
         std::cout << ">> Captura salva em: " << caminhoArquivo << std::endl;
     } else {
         std::cout << ">> Captura salva em: " << ppmPath << std::endl;
-    }
-}
-
-void Aplicacao::verificarEntradaTerminal() {
-    // Usamos poll não-bloqueante no descritor padrão de entrada (stdin)
-    struct pollfd pfd;
-    pfd.fd = STDIN_FILENO;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
-
-    int ret = poll(&pfd, 1, 0); // Timeout 0 ms (não bloqueante)
-    if (ret > 0 && (pfd.revents & POLLIN)) {
-        char c;
-        if (read(STDIN_FILENO, &c, 1) > 0) {
-            if (c == '\n' || c == '\r') {
-                if (!bufferTerminal.empty()) {
-                    processarComandoTerminal(bufferTerminal);
-                    bufferTerminal.clear();
-                    std::cout << "\n[CG-Terminal]> " << std::flush;
-                } else {
-                    std::cout << "\n[CG-Terminal]> " << std::flush;
-                }
-            } else {
-                bufferTerminal += c;
-            }
-        }
-    }
-}
-
-void Aplicacao::processarComandoTerminal(const std::string& comandoLinha) {
-    std::istringstream iss(comandoLinha);
-    std::string cmd;
-    if (!(iss >> cmd)) return;
-
-    Objeto2D* obj = cena.getObjetoAtivo();
-
-    if (cmd == "ajuda" || cmd == "help" || cmd == "?") {
-        exibirAjudaTerminal();
-    } else if (cmd == "status") {
-        exibirStatusTerminal();
-    } else if (cmd == "selecionar" || cmd == "sel") {
-        std::string param;
-        if (iss >> param) {
-            bool achou = false;
-            try {
-                int num = std::stoi(param);
-                if (num >= 1 && num <= static_cast<int>(cena.getObjetos().size())) {
-                    cena.setIndiceObjetoAtivo(num - 1);
-                    std::cout << ">> Objeto ativo selecionado: [" << num << "] " << cena.getObjetoAtivo()->getNome() << "\n";
-                    achou = true;
-                }
-            } catch (...) {}
-
-            if (!achou) {
-                for (size_t i = 0; i < cena.getObjetos().size(); ++i) {
-                    std::string nObj = cena.getObjetos()[i].getNome();
-                    std::string pLow = param, nLow = nObj;
-                    for (char& c : pLow) c = std::tolower(c);
-                    for (char& c : nLow) c = std::tolower(c);
-                    if (pLow == nLow) {
-                        cena.setIndiceObjetoAtivo(static_cast<int>(i));
-                        std::cout << ">> Objeto ativo selecionado: [" << (i + 1) << "] " << nObj << "\n";
-                        achou = true;
-                        break;
-                    }
-                }
-            }
-            if (!achou) {
-                std::cout << ">> Objeto desconhecido: " << param << ". Use o indice de 1 a " << cena.getObjetos().size() << " ou o nome do objeto.\n";
-            }
-        }
-    } else if (cmd == "transladar" || cmd == "mover") {
-        float dx = 0.0f, dy = 0.0f;
-        if (iss >> dx >> dy) {
-            if (obj) {
-                obj->transladar(dx, dy);
-                std::cout << ">> Transladado (" << dx << ", " << dy << ") em " << obj->getNome() << "\n";
-            }
-        } else {
-            std::cout << ">> Uso: transladar <dx> <dy>\n";
-        }
-    } else if (cmd == "rotacionar" || cmd == "rot") {
-        float graus = 0.0f;
-        if (iss >> graus) {
-            if (obj) {
-                obj->rotacionarCentro(glm::radians(graus));
-                std::cout << ">> Rotacionado " << graus << " graus em torno do centro em " << obj->getNome() << "\n";
-            }
-        } else {
-            std::cout << ">> Uso: rotacionar <graus>\n";
-        }
-    } else if (cmd == "rotacionar_origem" || cmd == "roto") {
-        float graus = 0.0f;
-        if (iss >> graus) {
-            if (obj) {
-                obj->rotacionarOrigem(glm::radians(graus));
-                std::cout << ">> Rotacionado " << graus << " graus em torno da origem em " << obj->getNome() << "\n";
-            }
-        } else {
-            std::cout << ">> Uso: rotacionar_origem <graus>\n";
-        }
-    } else if (cmd == "escala") {
-        float sx = 1.0f, sy = 1.0f;
-        if (iss >> sx) {
-            if (!(iss >> sy)) sy = sx; // uniforme se omitido
-            if (obj) {
-                obj->escalarCentro(sx, sy);
-                std::cout << ">> Escala aplicada (" << sx << ", " << sy << ") em " << obj->getNome() << "\n";
-            }
-        } else {
-            std::cout << ">> Uso: escala <sx> [sy]\n";
-        }
-    } else if (cmd == "cisalhar" || cmd == "shear") {
-        float hx = 0.0f, hy = 0.0f;
-        if (iss >> hx >> hy) {
-            if (obj) {
-                obj->cisalhar(hx, hy);
-                std::cout << ">> Cisalhamento aplicado (hx=" << hx << ", hy=" << hy << ") em " << obj->getNome() << "\n";
-            }
-        } else {
-            std::cout << ">> Uso: cisalhar <hx> <hy>\n";
-        }
-    } else if (cmd == "espelhar" || cmd == "reflexao") {
-        std::string eixo;
-        if (iss >> eixo) {
-            if (eixo == "x" || eixo == "X") {
-                if (obj) obj->espelharX();
-                std::cout << ">> Reflexao no eixo X aplicada.\n";
-            } else if (eixo == "y" || eixo == "Y") {
-                if (obj) obj->espelharY();
-                std::cout << ">> Reflexao no eixo Y aplicada.\n";
-            } else {
-                std::cout << ">> Uso: espelhar <x|y>\n";
-            }
-        }
-    } else if (cmd == "reset" || cmd == "reiniciar") {
-        if (obj) {
-            obj->resetar();
-            std::cout << ">> Matriz acumulada de " << obj->getNome() << " reiniciada para a Identidade.\n";
-        }
-    } else if (cmd == "reset_todos") {
-        cena.resetarTodosObjetos();
-        std::cout << ">> Todos os objetos foram reiniciados.\n";
-    } else if (cmd == "demo" || cmd == "ordem") {
-        std::string sub;
-        if (iss >> sub) {
-            if (sub == "on" || sub == "ativar" || sub == "1") modoDemonstracaoOrdem = true;
-            else if (sub == "off" || sub == "desativar" || sub == "0") modoDemonstracaoOrdem = false;
-            else toggleModoDemonstracao();
-        } else {
-            toggleModoDemonstracao();
-        }
-        std::cout << ">> Modo de demonstracao da ordem " << (modoDemonstracaoOrdem ? "ATIVADO" : "DESATIVADO") << "\n";
-    } else if (cmd == "captura" || cmd == "screenshot") {
-        std::string nome;
-        if (!(iss >> nome)) nome = "captura.png";
-        salvarCaptura(nome);
-    } else if (cmd == "sair" || cmd == "exit" || cmd == "quit") {
-        std::cout << ">> Encerrando aplicacao...\n";
-        exit(0);
-    } else {
-        std::cout << ">> Comando desconhecido: " << cmd << ". Digite 'ajuda' para a lista de comandos.\n";
-    }
-
-    glutPostRedisplay();
-}
-
-void Aplicacao::exibirAjudaTerminal() {
-    std::cout << "\n===========================================================\n"
-              << "       TP1 - COMPUTAÇÃO GRÁFICA: TRANSFORMACÕES 2D        \n"
-              << "===========================================================\n"
-              << "COMANDOS DISPONÍVEIS NO TERMINAL:\n"
-              << "  selecionar <1|2|3|casa|barco|moinho>  - Escolhe o objeto ativo\n"
-              << "  transladar <dx> <dy>                  - Move no mundo cartesiano\n"
-              << "  rotacionar <graus>                    - Gira em torno do centro geometrico\n"
-              << "  rotacionar_origem <graus>             - Gira em torno da origem (0,0)\n"
-              << "  escala <sx> [sy]                      - Escala uniforme ou nao uniforme\n"
-              << "  cisalhar <hx> <hy>                    - Aplica cisalhamento em X e Y\n"
-              << "  espelhar <x|y>                        - Reflexao em relacao aos eixos\n"
-              << "  reset                                 - Restaura a matriz acumulada (Identidade)\n"
-              << "  reset_todos                           - Restaura todos os objetos\n"
-              << "  demo                                  - Alterna a demonstracao T*S vs S*T\n"
-              << "  status                                - Exibe a matriz acumulada M\n"
-              << "  ajuda                                 - Exibe este menu\n"
-              << "  sair                                  - Fecha a aplicacao\n"
-              << "-----------------------------------------------------------\n"
-              << "ATALHOS DE TECLADO NA JANELA GRÁFICA:\n"
-              << "  [1, 2, 3] : Selecionar objeto ativo\n"
-              << "  Setas     : Transladar X e Y\n"
-              << "  R / r     : Rotacionar pelo centro\n"
-              << "  O / o     : Rotacionar pela origem\n"
-              << "  + / -     : Escala uniforme\n"
-              << "  ] / [     : Escala nao uniforme\n"
-              << "  H / h     : Cisalhamento\n"
-              << "  X / Y     : Reflexao nos eixos X e Y\n"
-              << "  0         : Resetar matriz acumulada M\n"
-              << "  D         : Alternar tela de demonstracao de ordem\n"
-              << "  Q / Esc   : Sair\n"
-              << "===========================================================\n";
-}
-
-void Aplicacao::exibirStatusTerminal() {
-    const Objeto2D* obj = cena.getObjetoAtivo();
-    if (!obj) return;
-
-    std::cout << "\n--- STATUS: " << obj->getNome() << " ---\n";
-    glm::vec2 c = obj->calcularCentroAtual();
-    std::cout << "Centro no Mundo: (" << c.x << ", " << c.y << ")\n";
-    std::cout << "Matriz Acumulada M:\n";
-    const glm::mat3& M = obj->getMatrizAcumulada();
-    for (int r = 0; r < 3; ++r) {
-        std::cout << "  | ";
-        for (int col = 0; col < 3; ++col) {
-            std::cout << std::fixed << std::setprecision(3) << std::setw(8) << M[col][r] << " ";
-        }
-        std::cout << "|\n";
     }
 }

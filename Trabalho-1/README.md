@@ -3,17 +3,19 @@
 **Disciplina:** Computação Gráfica  
 **Curso:** Bacharelado em Ciência da Computação  
 **Instituição:** Instituto Federal do Norte de Minas Gerais (IFNMG) - Campus Montes Claros  
-**Professor:** Wagner Ferreira de Barros  
+**Professor:** Wagner Ferreira de Barros
 
 ---
 
 ## 1. Integrantes
-- Vinicius (Insira o nome completo do integrante / dupla aqui)
+
+- Vinicius Macedo e Ícaro Vinicius
 
 ---
 
 ## 2. Sistema Operacional e Ambiente de Desenvolvimento
-- **Sistema Operacional:** Linux (Arch Linux x86_64 / Ubuntu / Debian compatível)
+
+- **Sistema Operacional:** Linux (x86_64 compatível com Ubuntu, Debian, Arch Linux)
 - **Compilador:** `g++` (suporte a C++17 ou superior)
 - **Bibliotecas Gráficas:** OpenGL Legacy, FreeGLUT (`freeglut3-dev` / `freeglut`), GLM (OpenGL Mathematics)
 
@@ -22,17 +24,19 @@
 ## 3. Dependências e Instalação
 
 ### No Linux (Ubuntu / Debian / Linux Mint):
+
 ```bash
 sudo apt update
 sudo apt install build-essential freeglut3-dev libglm-dev
 ```
 
 ### No Arch Linux / Manjaro:
+
 ```bash
 sudo pacman -S base-devel freeglut glm
 ```
 
-*(Nota: O projeto inclui os cabeçalhos da GLM no diretório `include/glm/` para garantir compilação imediata e independente sem depender de permissões de superusuário).*
+_(Nota: O projeto inclui os cabeçalhos da GLM no diretório `include/glm/` para garantir compilação imediata e independente)._
 
 ---
 
@@ -41,6 +45,7 @@ sudo pacman -S base-devel freeglut glm
 O projeto conta com um `Makefile` configurado para automatizar todo o processo.
 
 ### Compilar:
+
 ```bash
 make
 # ou
@@ -48,6 +53,7 @@ make all
 ```
 
 ### Executar:
+
 ```bash
 make run
 # ou diretamente:
@@ -55,6 +61,7 @@ make run
 ```
 
 ### Limpar arquivos gerados:
+
 ```bash
 make clean
 ```
@@ -77,7 +84,7 @@ O projeto foi organizado rigorosamente em classes, separando as responsabilidade
 │   ├── Vertice.hpp         # Representação de coordenadas no espaço 2D
 │   ├── Poligono.hpp        # Polígono com cor RGB e lista ordenada de vértices no mundo
 │   ├── Objeto2D.hpp        # Agrupador de polígonos, matriz acumulada M e centro geométrico
-│   ├── Transformacoes.hpp  # Fábrica de matrizes homogêneas 3x3 (GLM)
+│   ├── Transformacoes.hpp  # Fábrica de matrizes afins homogêneas 3x3 (GLM)
 │   ├── Viewport.hpp        # Mapeamento explícito Mundo -> Viewport com inversão do eixo Y
 │   ├── Cena.hpp            # Gerenciador da coleção de objetos e objeto ativo
 │   └── Aplicacao.hpp       # Loop da aplicação, callbacks GLUT, interface e terminal
@@ -85,99 +92,140 @@ O projeto foi organizado rigorosamente em classes, separando as responsabilidade
 │   ├── Vertice.cpp
 │   ├── Poligono.cpp
 │   ├── Objeto2D.cpp
-│   ├── Transformacoes.cpp
 │   ├── Viewport.cpp
 │   ├── Cena.cpp
 │   ├── Aplicacao.cpp
 │   └── main.cpp
 ├── Makefile
+├── PLANEJAMENTO.md
 └── README.md
 ```
 
 ### 5.1 Arquivos Iniciais e Modelo da Cena
+
 O diretório `include/` incorpora a descrição da cena inicial do TP1 em coordenadas do mundo:
+
 - `scene_types.hpp`: define as estruturas `PoligonoBase` (cor RGB e lista de vértices `glm::vec2`) e `ObjetoBase` (nome e lista de `PoligonoBase`).
 - `casa.hpp`, `barco.hpp` e `moinho.hpp`: definem as figuras coloridas em coordenadas cartesianas do mundo.
-- `cena_inicial.hpp`: disponibiliza a função `criarCenaInicial()`, que instancia e reúne os três objetos iniciais.
-
-As estruturas usam `glm::vec2` para vértices e `glm::vec3` para cores RGB. Os vértices permanecem no sistema do mundo; a conversão explícita para a viewport é responsabilidade da implementação.
-
-Exemplo de uso:
-```cpp
-#include "cena_inicial.hpp"
-
-std::vector<ObjetoBase> cena = criarCenaInicial();
-```
-A classe `Cena` utiliza essa interface via método `carregarDeCenaBase(...)`, permitindo que o professor modifique, amplie ou substitua a cena para criar variações de avaliação sem alterações manuais no restante da arquitetura.
-
-### 5.2 Principais Classes e Responsabilidades:
-1. **`Vertice`**: Encapsula coordenadas $(x, y)$ usando `glm::vec2`.
-2. **`Poligono`**: Armazena a cor `glm::vec3` e uma lista `std::vector<Vertice>` no sistema de coordenadas do mundo. Possui construtor e conversão direta com `PoligonoBase` de `scene_types.hpp`.
-3. **`Objeto2D`**:
-   - Mantém os vértices originais **imutáveis**.
-   - Construtível diretamente a partir de `ObjetoBase` de `scene_types.hpp`.
-   - Armazena a **matriz acumulada $M$** (`glm::mat3`), inicializada com a identidade.
-   - Calcula o centro geométrico $(C_x, C_y)$ pela média aritmética dos vértices originais e rastreia o centro transformado atual no mundo.
-4. **`Transformacoes`**:
-   - Gera matrizes de translação, escala (uniforme e não uniforme), rotação em torno da origem, rotação em torno de ponto arbitrário ($M = T(C) \cdot R \cdot T(-C)$), reflexões e cisalhamento.
-5. **`Viewport`**:
-   - Implementa o cálculo explícito de mapeamento do sistema cartesiano do mundo para as coordenadas de pixel da viewport.
-   - **Inversão do Eixo Y**: Realiza a inversão necessária ($Y$ cresce para cima no mundo e para baixo na tela/viewport).
-6. **`Cena`**:
-   - Carrega dinamicamente a cena através do include oficial (`#include "cena_inicial.hpp"` e `criarCenaInicial()`), gerenciando a lista de objetos e o objeto ativo.
-7. **`Aplicacao`**:
-   - Configura as callbacks do GLUT, desenha a viewport delimitada, desenha eixos cartesianos com graduações, desenha o painel lateral de status e processa entradas do usuário.
+- `cena_inicial.hpp`: instancia e posiciona a Casa, o Barco e o Moinho em coordenadas estáticas do mundo.
 
 ---
 
-## 6. Comandos de Interação
+## 6. Mapeamento Mundo -> Viewport & Inversão do Eixo Y
 
-A interação pode ser realizada tanto por **atalhos de teclado na janela gráfica** quanto por **comandos digitados no terminal**:
+Em conformidade com as regras do trabalho prático, as coordenadas dos vértices transformados são calculadas explicitamente pelo programa antes de serem enviadas ao OpenGL. Funções proibidas de transformação e viewport automáticos (`glViewport`, `gluOrtho2D`, `glTranslatef`, `glRotatef`, `glScalef`) não são utilizadas para desenhar as formas.
 
-### 6.1 Atalhos de Teclado (na Janela Gráfica)
-| Tecla | Ação |
-| :--- | :--- |
-| `1` | Seleciona a **Casa** como objeto ativo |
-| `2` | Seleciona o **Barco** como objeto ativo |
-| `3` | Seleciona o **Moinho** como objeto ativo |
-| `Setas` ($\leftarrow, \rightarrow, \uparrow, \downarrow$) | Transladar objeto no eixo X e Y |
-| `R` / `r` | Rotacionar em torno do centro geométrico do objeto ($\pm 5^\circ$) |
-| `O` / `o` | Rotacionar em torno da origem cartesiana $(0, 0)$ ($\pm 5^\circ$) |
-| `+` / `-` | Escala uniforme (+10% / -10%) |
-| `]` / `[` | Escala não uniforme (estica/encolhe em X) |
-| `H` / `h` | Cisalhamento em X e Y |
-| `X` / `Y` | Reflexão em relação aos eixos X e Y |
-| `0` (zero) | **Reset:** Restaura a matriz acumulada do objeto ativo para a Identidade |
-| `D` | Alterna para o **Modo de Demonstração da Ordem das Transformações** ($T \cdot S$ vs $S \cdot T$) |
-| `Clique + Arraste` | Seleciona e translada o objeto diretamente com o mouse |
-| `Q` ou `Esc` | Encerra a aplicação |
+### Fórmulas Matemáticas Utilizadas:
 
-### 6.2 Comandos Interativos no Terminal
-Com a aplicação em execução, você pode digitar comandos no terminal onde o programa foi aberto:
-- `selecionar <1|2|3|casa|barco|moinho>`
-- `transladar <dx> <dy>` ou `mover <dx> <dy>`
-- `rotacionar <graus>` (em torno do centro geométrico)
-- `rotacionar_origem <graus>` (em torno da origem do mundo)
-- `escala <sx> [sy]` (escala uniforme ou não uniforme)
-- `cisalhar <hx> <hy>`
-- `espelhar <x|y>`
-- `reset` (reinicia o objeto ativo)
-- `reset_todos` (reinicia todos os objetos da cena)
-- `demo` (ativa/desativa a demonstração de não-comutatividade)
-- `status` (exibe a matriz acumulada $M$ e o centro no terminal)
-- `ajuda` (imprime o manual de comandos)
-- `sair` (fecha a aplicação)
+Para mapear um ponto do mundo $P_w = (x_w, y_w)$ para a viewport da janela $P_v = (x_v, y_v)$:
+
+$$x_v = x_{v\min} + \frac{x_w - x_{w\min}}{x_{w\max} - x_{w\min}} \cdot (x_{v\max} - x_{v\min})$$
+
+$$y_v = y_{v\min} + \frac{y_{w\max} - y_w}{y_{w\max} - y_{w\min}} \cdot (y_{v\max} - y_{v\min})$$
+
+> **Nota sobre o eixo Y:** No sistema cartesiano do mundo, $Y$ cresce para cima. No sistema de pixels de tela/eventos da janela, a origem $(0, 0)$ fica no canto superior esquerdo e $Y$ cresce para baixo. A inversão vertical é garantida pelo termo $(y_{w\max} - y_w)$.
 
 ---
 
-## 7. Conformidade com as Restrições Técnicas
-- **Sem funções proibidas:** Nenhuma função de transformação do OpenGL (`glTranslatef`, `glRotatef`, `glScalef`, `glViewport`) é usada como substituto das operações exigidas. O OpenGL recebe unicamente as coordenadas finais já mapeadas em pixels.
-- **Vértices imutáveis:** Os vértices originais permanecem inalterados; toda manipulação é realizada via matriz acumulada homogênea $3 \times 3$ (`glm::mat3`).
-- **Mapeamento Explícito:** A conversão Mundo $\to$ Viewport com inversão vertical do eixo $Y$ é calculada matematicamente pela classe `Viewport`.
+## 7. Transformações Geométricas 2D & Coordenadas Homogêneas 3×3
+
+Cada objeto mantém sua matriz acumulada $M = I_{3 \times 3}$. Todas as transformações são representadas por matrizes afins homogêneas $3 \times 3$ com a convenção de vetores-coluna (padrão GLM/OpenGL):
+
+$$\begin{bmatrix} x' \\ y' \\ 1 \end{bmatrix} = M \cdot \begin{bmatrix} x \\ y \\ 1 \end{bmatrix}$$
+
+A composição de uma nova transformação $T_{\text{nova}}$ sobre a matriz acumulada é feita à esquerda (ordem cronológica padrão):
+$$M_{\text{acumulada}} \leftarrow T_{\text{nova}} \cdot M_{\text{acumulada}}$$
 
 ---
 
-## 8. Fontes Consultadas
-- HEARN, Donald; BAKER, M. Pauline; CARITHERS, Warren. *Computer Graphics with OpenGL*. 4. ed. Pearson, 2014.
-- Documentação oficial da GLM (OpenGL Mathematics): [glm.g-truc.net](https://glm.g-truc.net)
-- Documentação da especificação OpenGL e FreeGLUT: [freeglut.sourceforge.net](https://freeglut.sourceforge.net/)
+## 8. Principais Fórmulas Matemáticas das Operações
+
+Abaixo estão as matrizes afins homogêneas $3 \times 3$ implementadas para cada operação geométrica:
+
+### 8.1 Translação $T(\Delta x, \Delta y)$
+Desloca os vértices horizontalmente por $\Delta x$ e verticalmente por $\Delta y$:
+$$T(\Delta x, \Delta y) = \begin{bmatrix} 1 & 0 & \Delta x \\ 0 & 1 & \Delta y \\ 0 & 0 & 1 \end{bmatrix}$$
+
+### 8.2 Escala na Origem $S(s_x, s_y)$
+Modifica as proporções dos vértices em relação à origem $(0,0)$. Se $s_x = s_y$, a escala é uniforme; caso contrário, é não-uniforme:
+$$S(s_x, s_y) = \begin{bmatrix} s_x & 0 & 0 \\ 0 & s_y & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+
+### 8.3 Rotação na Origem $R(\theta)$
+Gira os vértices por um ângulo $\theta$ (em radianos) no sentido anti-horário em torno de $(0,0)$:
+$$R(\theta) = \begin{bmatrix} \cos(\theta) & -\sin(\theta) & 0 \\ \sin(\theta) & \cos(\theta) & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+
+### 8.4 Rotação em Torno de um Centro Arbitrário $C = (x_c, y_c)$
+Para rotacionar o objeto ao redor do seu próprio centro geométrico sem deslocá-lo para a origem:
+1. Translada o centro para a origem: $T(-x_c, -y_c)$
+2. Aplica a rotação: $R(\theta)$
+3. Devolve o objeto à posição original: $T(x_c, y_c)$
+
+$$M_{R_C} = T(x_c, y_c) \cdot R(\theta) \cdot T(-x_c, -y_c)$$
+
+$$\begin{bmatrix}
+\cos(\theta) & -\sin(\theta) & x_c(1 - \cos\theta) + y_c \sin\theta \\
+\sin(\theta) & \cos(\theta) & y_c(1 - \cos\theta) - x_c \sin\theta \\
+0 & 0 & 1
+\end{bmatrix}$$
+
+### 8.5 Escala em Torno de um Centro Arbitrário $C = (x_c, y_c)$
+Para redimensionar o objeto preservando a posição do seu centro geométrico:
+$$M_{S_C} = T(x_c, y_c) \cdot S(s_x, s_y) \cdot T(-x_c, -y_c)$$
+
+$$\begin{bmatrix}
+s_x & 0 & x_c(1 - s_x) \\
+0 & s_y & y_c(1 - s_y) \\
+0 & 0 & 1
+\end{bmatrix}$$
+
+### 8.6 Cisalhamento (Shear) $H_x(h_x)$ e $H_y(h_y)$
+Distorce a geometria inclinando-a linearmente ao longo de um eixo em função da coordenada do outro:
+- **Cisalhamento ao longo do eixo X:**
+  $$H_x(h_x) = \begin{bmatrix} 1 & h_x & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix} \implies \begin{cases} x' = x + h_x \cdot y \\ y' = y \end{cases}$$
+
+- **Cisalhamento ao longo do eixo Y:**
+  $$H_y(h_y) = \begin{bmatrix} 1 & 0 & 0 \\ h_y & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix} \implies \begin{cases} x' = x \\ y' = y + h_y \cdot x \end{cases}$$
+
+### 8.7 Reflexão (Espelhamento)
+Inverte as coordenadas em relação aos eixos cartesianos:
+- **Reflexão no eixo X** (inverte verticalmente o sinal de $y$):
+  $$Ref_x = \begin{bmatrix} 1 & 0 & 0 \\ 0 & -1 & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+
+- **Reflexão no eixo Y** (inverte horizontalmente o sinal de $x$):
+  $$Ref_y = \begin{bmatrix} -1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix}$$
+
+---
+
+## 9. Não-Comutatividade das Transformações (Tecla D)
+
+O programa demonstra geometricamente e algebricamente a não-comutatividade do produto matricial ($A \cdot B \neq B \cdot A$):
+
+- **Modo Normal:** $M = T_{\text{nova}} \cdot M$ (a operação atual atua sobre o estado e centro atuais do objeto).
+- **Modo Ordem Contrária (Tecla D):** calcula $M = M \cdot T_{\text{nova}}$ (pré-multiplicando as operações na base antes das translações anteriores).
+  Ao alternar a tecla **`D`**, a tela ganha destaque avermelhado e renderiza toda a cena com a matriz de ordem inversa, permitindo visualizar órbitas distorcidas causadas pela troca da ordem, com um aramado de referência da posição correta.
+
+---
+
+## 10. Controles e Atalhos
+
+### Teclado (Janela Gráfica):
+
+| Tecla                     | Ação                                                             |
+| :------------------------ | :--------------------------------------------------------------- |
+| **`1`**, **`2`**, **`3`** | Seleciona o objeto ativo (Casa, Barco, Moinho)                   |
+| **Setas direcionais**     | Translação nos eixos X e Y                                       |
+| **`R` / `r`**             | Rotação horária / anti-horária em torno do **centro geométrico** |
+| **`O` / `o`**             | Rotação horária / anti-horária em torno da **origem $(0, 0)$**   |
+| **`+` / `-`**             | Escala uniforme (+10% / -10%) em torno do centro                 |
+| **`]` / `[`**             | Escala não-uniforme no eixo X (+10% / -10%)                      |
+| **`H` / `h`**             | Cisalhamento (_shear_) nos eixos Y / X                           |
+| **`X` / `Y`**             | Reflexão / Espelhamento no eixo X / eixo Y                       |
+| **`0` (zero)**            | Reset da matriz acumulada $M$ para a Identidade                  |
+| **`D`**                   | Alterna entre o modo Normal e o modo de Ordem Contrária          |
+| **`Q` / `ESC`**           | Sair da aplicação                                                |
+
+### Mouse:
+
+- **Clique com botão esquerdo na Viewport:** seleciona o objeto mais próximo do cursor.
+- **Clique e arraste com o botão esquerdo:** move diretamente o objeto ativo pelo mundo, convertendo $\Delta\text{pixel} \to \Delta\text{mundo}$.
+- **Clique na lista do Painel Lateral:** alterna o objeto ativo.

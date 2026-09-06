@@ -3,19 +3,21 @@
 
 #include "Poligono.hpp"
 #include "scene_types.hpp"
-#include <glm/glm.hpp>
 #include <string>
 #include <vector>
+#include <glm/mat3x3.hpp>
+#include <glm/vec2.hpp>
 
 /**
- * @brief Representa um objeto 2D composto por polígonos no sistema de coordenadas do mundo.
- * Mantém os vértices originais imutáveis e armazena uma matriz acumulada M (glm::mat3).
+ * @brief Representa um objeto bidimensional composto por polígonos.
+ * Armazena os vértices originais e mantém uma matriz homogênea acumulada M (3x3).
  */
 class Objeto2D {
 private:
     std::string nome;
     std::vector<Poligono> poligonos; // Vértices originais imutáveis no mundo
-    glm::mat3 matrizAcumulada;        // Matriz M acumulada das transformações
+    glm::mat3 matrizAcumulada;        // Matriz M padrão: Nova * M (ordem cronológica correta)
+    glm::mat3 matrizOrdemInversa;     // Matriz com ordem contrária: M * Nova (para demonstrar não-comutatividade)
 
 public:
     Objeto2D();
@@ -32,30 +34,16 @@ public:
     const glm::mat3& getMatrizAcumulada() const { return matrizAcumulada; }
     void setMatrizAcumulada(const glm::mat3& M) { matrizAcumulada = M; }
 
-    /**
-     * @brief Compõe uma nova transformação na matriz acumulada à esquerda:
-     * matrizAcumulada = novaTransformacao * matrizAcumulada
-     */
-    void comporTransformacao(const glm::mat3& novaTransformacao);
+    const glm::mat3& getMatrizOrdemInversa() const { return matrizOrdemInversa; }
+    void setMatrizOrdemInversa(const glm::mat3& M) { matrizOrdemInversa = M; }
 
-    /**
-     * @brief Restaura a matriz acumulada para a identidade.
-     */
+    void comporTransformacao(const glm::mat3& novaTransformacao);
     void resetar();
 
-    /**
-     * @brief Calcula o centro geométrico do objeto a partir dos vértices originais (média aritmética).
-     */
     glm::vec2 calcularCentroOriginal() const;
+    glm::vec2 calcularCentroAtual(bool ordemInversa = false) const;
 
-    /**
-     * @brief Calcula a posição atual do centro geométrico no mundo (centro original transformado por M).
-     */
-    glm::vec2 calcularCentroAtual() const;
-
-    /**
-     * @brief Atalhos de transformação que atualizam a matriz acumulada M
-     */
+    // Métodos diretos de transformação exigidos no edital
     void transladar(float dx, float dy);
     void rotacionarCentro(float anguloRadianos);
     void rotacionarOrigem(float anguloRadianos);

@@ -2,36 +2,35 @@
 
 Viewport::Viewport() : mundo(), regiao() {}
 
-Viewport::Viewport(const JanelaMundo& mundo, const RegiaoViewport& regiao)
-    : mundo(mundo), regiao(regiao) {}
+Viewport::Viewport(const JanelaMundo& jm, const RegiaoViewport& rv)
+    : mundo(jm), regiao(rv) {}
 
 glm::vec2 Viewport::mundoParaViewport(const glm::vec2& pMundo) const {
-    // 1. Normalização das coordenadas do mundo para o intervalo [0, 1]
-    float normX = (pMundo.x - mundo.xMin) / (mundo.xMax - mundo.xMin);
-    float normY = (pMundo.y - mundo.yMin) / (mundo.yMax - mundo.yMin);
+    float xw = pMundo.x;
+    float yw = pMundo.y;
 
-    // 2. Mapeamento explícito para a viewport com inversão do eixo Y
-    // No mundo: Y mínimo está na base, Y máximo no topo.
-    // Na tela (viewport): Y mínimo (regiao.yMin) está no topo e cresce para baixo até regiao.yMax.
-    // Logo, (1.0f - normY) inverte a orientação vertical.
-    float xVp = regiao.xMin + normX * (regiao.xMax - regiao.xMin);
-    float yVp = regiao.yMin + (1.0f - normY) * (regiao.yMax - regiao.yMin);
+    // Escala e translação no eixo X
+    float xv = regiao.xMin + ((xw - mundo.xMin) / mundo.getLargura()) * regiao.getLargura();
 
-    return glm::vec2(xVp, yVp);
+    // Escala, translação e INVERSÃO no eixo Y:
+    // No mundo: ywMin é a base e ywMax é o topo.
+    // Na tela:  regiao.yMin é o topo e regiao.yMax é a base.
+    float yv = regiao.yMin + ((mundo.yMax - yw) / mundo.getAltura()) * regiao.getAltura();
+
+    return glm::vec2(xv, yv);
 }
 
 glm::vec2 Viewport::viewportParaMundo(const glm::vec2& pViewport) const {
-    float normX = (pViewport.x - regiao.xMin) / (regiao.xMax - regiao.xMin);
-    // Inversão do eixo Y na volta
-    float normY = 1.0f - ((pViewport.y - regiao.yMin) / (regiao.yMax - regiao.yMin));
+    float xv = pViewport.x;
+    float yv = pViewport.y;
 
-    float xMundo = mundo.xMin + normX * (mundo.xMax - mundo.xMin);
-    float yMundo = mundo.yMin + normY * (mundo.yMax - mundo.yMin);
+    float xw = mundo.xMin + ((xv - regiao.xMin) / regiao.getLargura()) * mundo.getLargura();
+    float yw = mundo.yMax - ((yv - regiao.yMin) / regiao.getAltura()) * mundo.getAltura();
 
-    return glm::vec2(xMundo, yMundo);
+    return glm::vec2(xw, yw);
 }
 
-bool Viewport::contemPonto(float x, float y) const {
-    return (x >= regiao.xMin && x <= regiao.xMax &&
-            y >= regiao.yMin && y <= regiao.yMax);
+bool Viewport::contemPonto(float xPixel, float yPixel) const {
+    return (xPixel >= regiao.xMin && xPixel <= regiao.xMax &&
+            yPixel >= regiao.yMin && yPixel <= regiao.yMax);
 }

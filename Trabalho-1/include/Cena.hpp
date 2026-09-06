@@ -19,7 +19,6 @@ public:
 
     void inicializarObjetosPadrao();
     void carregarDeCenaBase(const std::vector<ObjetoBase>& cenaBase);
-    bool carregarDeArquivo(const std::string& caminhoArquivo);
 
     const std::vector<Objeto2D>& getObjetos() const { return objetos; }
     std::vector<Objeto2D>& getObjetos() { return objetos; }
